@@ -1,14 +1,19 @@
-import React from "react";
-import {useEffect, useState} from "react";
+import React, {useEffect, useState} from "react";
 import * as Location from "expo-location";
-import {Alert, Text} from "react-native";
-import {Button} from "react-native-paper";
+import {Alert, Image, StyleSheet, Text, View} from "react-native";
+import {Button, Headline, Paragraph, Subheading} from "react-native-paper";
+import {NavigationStackScreenComponent, NavigationStackScreenProps} from "react-navigation-stack";
+import Container from "../components/Container";
+import {useDispatch, useSelector} from "../hooks/hooks";
+import {storeLocalization} from "../slices/location";
 
-const Localization: React.FC = (props) => {
+const LocalizationScreen: NavigationStackScreenComponent<NavigationStackScreenProps> = (props) => {
   const [locationServiceEnabled, setLocationServiceEnabled] = useState<boolean>(false);
   const [displayCurrentAddress, setDisplayCurrentAddress] = useState<string>('Wait, we are fetching you location...');
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const dispatch = useDispatch();
+  const {location} = useSelector(state => state.location);
 
   useEffect(() => {
     checkIfLocationEnabled();
@@ -53,44 +58,103 @@ const Localization: React.FC = (props) => {
         latitude,
         longitude
       });
-
-      for (let item of response) {
-        let address = `${item.name}, ${item.street}, ${item.postalCode}, ${item.city}`;
-
-        setDisplayCurrentAddress(address);
+      let location = {
+        city: response[0].city,
+        country: response[0].country,
+        district: response[0].district,
+        isoCountryCode: response[0].isoCountryCode,
+        name: response[0].name,
+        postalCode: response[0].postalCode,
+        region: response[0].region,
+        street: response[0].street,
+        subregion: response[0].subregion,
+        timezone: response[0].timezone,
+        isInitialized: true
       }
+      dispatch(storeLocalization(location));
     }
   };
 
-  if (isLoading) {
+  if (!locationServiceEnabled) {
     return (
-        <>
-          <Text>Pobieram lokalizację</Text>
-        </>
+        <Container>
+          <View style={styles.container}>
+            <Image style={styles.image}
+                   source={require('../assets/images/location.png')}
+            />
+            <Headline>Musisz włączyć lokalizację aby korzystać z aplikacji!</Headline>
+          </View>
+        </Container>
     )
   }
 
-  if (!isLoading && !permissionGranted) {
+  if (!permissionGranted) {
     return (
-        <>
-          <Text>Nie przyznano dostępu do lokalizacji</Text>
-        </>
+        <Container>
+          <View style={styles.container}>
+            <Image style={styles.image}
+                   source={require('../assets/images/location.png')}
+            />
+            <Headline>Musisz pozwolić na użycie lokalizacji, aby korzystać z aplikacji!</Headline>
+          </View>
+        </Container>
     )
   }
 
-  if (!isLoading && permissionGranted) {
+  if (!location.isInitialized) {
     return (
-        <>
-          <Text>{displayCurrentAddress}</Text>
-          <Button onPress={() => Location.requestForegroundPermissionsAsync()}>
-            Text
+        <Container>
+          <View style={styles.container}>
+            <Image style={styles.image}
+                   source={require('../assets/images/location.png')}
+            />
+            <Headline>Pobieram aktualną lokację.</Headline>
+          </View>
+        </Container>
+    )
+  }
+
+  return (
+      <Container>
+        <View style={styles.container}>
+          <Image style={styles.image}
+                 source={require('../assets/images/location.png')}
+          />
+          <Subheading>Czy znajdujesz się w tym mieście?</Subheading>
+          <Headline style={styles.city}>{location.city}</Headline>
+          <Button style={styles.button} mode="contained" onPress={() => {}}>
+            Tak, przejdź to restauracji
           </Button>
-          {props.children}
-        </>
-    )
-  }
-
-  return null;
+          <Button style={styles.button} onPress={() => {}}>
+            Zlokalizuj mnie jeszcze raz
+          </Button>
+        </View>
+      </Container>
+  )
 }
 
-export default Localization;
+LocalizationScreen.navigationOptions = {
+  headerTitle: 'Twoja Lokalizacja'
+};
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    width: '100%'
+  },
+  city: {
+    marginVertical: 10
+  },
+  image: {
+    marginVertical: 20,
+    width: 160,
+    height: 160,
+    alignSelf: 'center'
+  },
+  button: {
+    marginVertical: 10,
+    width: '100%'
+  }
+});
+
+export default LocalizationScreen;
